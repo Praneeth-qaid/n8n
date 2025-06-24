@@ -1,0 +1,1411 @@
+{
+  "name": "Inventory managment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "37a9c009-699d-464d-a59f-d6e14993215f",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "34bc91f8-a85d-4311-a12c-9fdfd4e87714",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -940,
+        340
+      ],
+      "webhookId": "37a9c009-699d-464d-a59f-d6e14993215f"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.currentstock }}",
+              "value2": "={{ $json.threshold }}"
+            }
+          ]
+        }
+      },
+      "id": "450b62a1-e3c5-4bbd-a99f-94de5dd0cf70",
+      "name": "Low Stock Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "channel": "#inventory-alerts",
+        "text": "=stock alert\nDate & Time:{{ $now }}\n\n\nLow Stock Alert:{{ $json.productname }}(SKU:{{ $json.sku }} \nStock:{{ $json.currentstock }} / Threshold:{{ $json.threshold }} \nRecommended Action: Restock units \nwarehouse:{{ $json.warehouse }}\nsupplier name:{{ $json.suppliername }}\nsupplier contact:{{ $json.suppliercontact }}",
+        "otherOptions": {},
+        "attachments": []
+      },
+      "id": "e5b7abd5-84ab-4525-afc3-049c6f96b9dd",
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        340,
+        40
+      ],
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "gpWWBkCqUJXZFEFu",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## return order update\n\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/sticky-notes/)                ",
+        "height": 320,
+        "width": 720,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1060,
+        -460
+      ],
+      "id": "a428659b-3230-4ee3-ad26-941492b783a5",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM stockdata\nWHERE currentstock <= threshold;\n",
+        "additionalFields": {}
+      },
+      "id": "08e00f94-89f1-4fdc-82a1-80882fa67e9c",
+      "name": "Check Low Stock",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        20,
+        -300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GzGNFUfBak6tRB0P",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Auto restock trigger every day once\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/sticky-notes/)",
+        "height": 260,
+        "width": 520,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        -400
+      ],
+      "id": "6510f1b6-39f7-412b-9984-b07239655d75",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM stockdata\nWHERE currentstock > reorderquantity;\n",
+        "options": {}
+      },
+      "id": "3801cbf9-af6b-4614-989d-11a2ec974156",
+      "name": "Check Overstock",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GzGNFUfBak6tRB0P",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## auto check for the overstock in a week and send alert to the manager\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/sticky-notes/)",
+        "height": 240,
+        "width": 640
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1620,
+        60
+      ],
+      "id": "24cf9e0c-2f60-41b2-9ecb-1f35cdcc267f",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        1760,
+        100
+      ],
+      "id": "8ee78cdf-9c27-4c20-903e-c5d4f16089dd",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1XPKIhCiGrsCUV8aKRc094Q06u3rVcTL6FJOz94RAh0M",
+          "mode": "list",
+          "cachedResultName": "inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XPKIhCiGrsCUV8aKRc094Q06u3rVcTL6FJOz94RAh0M/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "stock order",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XPKIhCiGrsCUV8aKRc094Q06u3rVcTL6FJOz94RAh0M/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "sku"
+          ],
+          "schema": [
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sku",
+              "displayName": "sku",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "currentstock",
+              "displayName": "currentstock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "threshold",
+              "displayName": "threshold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reorder_quantity",
+              "displayName": "reorder_quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "warehouse",
+              "displayName": "warehouse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "supplier_name",
+              "displayName": "supplier_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "supplier_contact",
+              "displayName": "supplier_contact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "restockUnits",
+              "displayName": "restockUnits",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "dateStamp",
+              "displayName": "dateStamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        840,
+        -120
+      ],
+      "id": "1f10389c-e58f-4630-b6c1-6442d3912b31",
+      "name": "stock order",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NWGRhsugM8HTel2L",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sqlScript }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -600,
+        -360
+      ],
+      "id": "c2214eb5-0882-4f67-b244-7639a683690f",
+      "name": "update inventory",
+      "credentials": {
+        "postgres": {
+          "id": "GzGNFUfBak6tRB0P",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "listId": "6847c1f14c2cb4501661f5d9",
+        "name": "={{ $json.productname }}",
+        "description": "create a flag",
+        "additionalFields": {
+          "idLabels": "684814107bf2957e91b125ac"
+        }
+      },
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [
+        360,
+        220
+      ],
+      "id": "bc24f3dd-7fcb-4a42-b5f1-f4e45300cfdc",
+      "name": "over stock flag",
+      "credentials": {
+        "trelloApi": {
+          "id": "vg8PxomEmHIsdwh8",
+          "name": "Trello account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "minutes"
+      },
+      "id": "c1af35bc-902e-4e71-9276-b659a420536c",
+      "name": "Wait 10 Min",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        440,
+        380
+      ],
+      "webhookId": "36fdb209-2651-4283-8a46-23f4b89ea832"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.message }}",
+              "value2": 3
+            }
+          ]
+        }
+      },
+      "id": "11ff394a-b80e-4ae1-a1e8-340a1009685f",
+      "name": "IF Retry < 3",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        640,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { retryCount: $json.retryCount + 1 } }];"
+      },
+      "id": "a5219f43-0e9c-4ad2-b5a5-485fbaa5117d",
+      "name": "Increment Retry",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        840,
+        420
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c6bde5ae-9fb0-4f34-8dd8-4594b9822136",
+      "name": "Exit",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        840,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "stockdata",
+          "mode": "list",
+          "cachedResultName": "stockdata"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -500,
+        120
+      ],
+      "id": "d25a9620-98fb-4079-8fed-23da695c1d7b",
+      "name": "fetch inventory",
+      "credentials": {
+        "postgres": {
+          "id": "GzGNFUfBak6tRB0P",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 11
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1580,
+        160
+      ],
+      "id": "cc1a6487-3386-4831-a533-b8b037a8c1f2",
+      "name": "Trigger once in a week"
+    },
+    {
+      "parameters": {
+        "sendTo": "akhilqaid@gmail.com",
+        "subject": "over stock alert",
+        "message": "=hello inventory manager,\nThe product {{ $json.productname }} with the sku {{ $json.sku }} is more then the record quantity, current stock is {{ $json.currentstock }} but the record quantity is {{ $json.reorderquantity }} so take the nessery action to manage it.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -1140,
+        160
+      ],
+      "id": "95be7ca0-8f48-466a-9ddc-422e5b863a85",
+      "name": "send mail to manager",
+      "webhookId": "c698976f-1b91-49d1-8d60-69c772b49322",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "61HxX1IfRN46WIZz",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 6
+            }
+          ]
+        }
+      },
+      "id": "e941e359-f234-470b-890b-d71662554cfa",
+      "name": "Trigger every 6 hours",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "93645942-e11b-4352-8804-5e9e70fe2634",
+              "name": "SKU",
+              "value": "={{ $json.query.SKU }}",
+              "type": "string"
+            },
+            {
+              "id": "571007f9-a10a-457c-a282-30c0c41e3575",
+              "name": "STATUS",
+              "value": "={{ $json.query.STATUS }}",
+              "type": "string"
+            },
+            {
+              "id": "8a62329d-f896-4f8a-b386-5e555b40d82b",
+              "name": "Returnstock",
+              "value": "={{ $json.query.Returnstock }}",
+              "type": "string"
+            },
+            {
+              "id": "71a5ea66-dad1-4776-95d4-4f931ec235d2",
+              "name": "Product Name",
+              "value": "={{ $json.query.productName }}",
+              "type": "string"
+            },
+            {
+              "id": "b0770002-d75c-4d1c-b128-a9a0c08d981d",
+              "name": "CurrentStock",
+              "value": "={{ $json.query.CurrentStock }}",
+              "type": "string"
+            },
+            {
+              "id": "e2b5275b-68d8-42e2-9bac-53867953a7d3",
+              "name": "Threshold",
+              "value": "={{ $json.query.Threshold }}",
+              "type": "string"
+            },
+            {
+              "id": "470c1249-48b9-4f50-b8ef-6167a3c4840d",
+              "name": "Reorder Quantity",
+              "value": "={{ $json.query.reorderQuantity }}",
+              "type": "string"
+            },
+            {
+              "id": "b5d98687-dc6f-4105-b911-8e547379ece0",
+              "name": "Warehouse",
+              "value": "={{ $json.query.Warehouse }}",
+              "type": "string"
+            },
+            {
+              "id": "c7bd4b89-d9fa-4d82-88c7-133d13126831",
+              "name": "Supplier Name",
+              "value": "={{ $json.query.supplierName }}",
+              "type": "string"
+            },
+            {
+              "id": "8730d22f-7324-426b-af4c-78a76f95007e",
+              "name": "Supplier Contact",
+              "value": "={{ $json.query.supplierContact }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1000,
+        -360
+      ],
+      "id": "92b29087-7769-4540-b32e-a1729ff9832c",
+      "name": "extract webhook body"
+    },
+    {
+      "parameters": {
+        "jsCode": "function generateSQLScript(inputData) {\n\n    let sqlScripts = [];\n\n    inputData.forEach(item => {\n\n        const {\n\n            SKU,\n\n            STATUS,\n\n            Returnstock,\n\n            \"Product Name\": productName,\n\n            CurrentStock,\n\n            Threshold,\n\n            \"Reorder Quantity\": reorderQuantity,\n\n            Warehouse,\n\n            \"Supplier Name\": supplierName,\n\n            \"Supplier Contact\": supplierContact\n\n        } = item;\n \n        // Map input fields to database column names\n\n        const mappedProductName = productName || null;\n\n        const mappedCurrentStock = CurrentStock || null;\n\n        const mappedReturnstock = Returnstock || null;\n\n        const mappedThreshold = Threshold || null;\n\n        const mappedReorderQuantity = reorderQuantity || null;\n\n        const mappedWarehouse = Warehouse || null;\n\n        const mappedSupplierName = supplierName || null;\n\n        const mappedSupplierContact = supplierContact || null;\n \n        // Generate SQL based on STATUS\n\n        let sql;\n\n        switch (STATUS.toUpperCase()) {\n\n            case 'INSERT':\n\n                sql = `\n\n                    INSERT INTO stockdata (\n\n                        Product_Name, SKU, CurrentStock, Threshold, Reorder_Quantity, Warehouse, Supplier_Name, Supplier_Contact\n\n                    ) VALUES (\n\n                        ${mappedProductName ? `'${mappedProductName.replace(/'/g, \"''\")}'` : 'NULL'},\n\n                        '${SKU.replace(/'/g, \"''\")}',\n\n                        ${mappedCurrentStock !== null ? mappedCurrentStock : 'NULL'},\n\n                        ${mappedThreshold !== null ? mappedThreshold : 'NULL'},\n\n                        ${mappedReorderQuantity !== null ? mappedReorderQuantity : 'NULL'},\n\n                        ${mappedWarehouse ? `'${mappedWarehouse.replace(/'/g, \"''\")}'` : 'NULL'},\n\n                        ${mappedSupplierName ? `'${mappedSupplierName.replace(/'/g, \"''\")}'` : 'NULL'},\n\n                        ${mappedSupplierContact ? `'${mappedSupplierContact.replace(/'/g, \"''\")}'` : 'NULL'}\n\n                    );\n\n                `;\n\n                break;\n \n            case 'UPDATE':\n\n                sql = `\n\n                    UPDATE stockdata\n\n                    SET\n\n                        ${mappedProductName ? `Product_Name = '${mappedProductName.replace(/'/g, \"''\")}',` : ''}\n\n                        ${(mappedCurrentStock !== null || mappedReturnstock !== null) ? `CurrentStock = CurrentStock + ${(mappedReturnstock || 0)}, ` : ''}\n\n                        ${mappedThreshold !== null ? `Threshold = ${mappedThreshold},` : ''}\n\n                        ${mappedReorderQuantity !== null ? `Reorder_Quantity = ${mappedReorderQuantity},` : ''}\n\n                        ${mappedWarehouse ? `Warehouse = '${mappedWarehouse.replace(/'/g, \"''\")}',` : ''}\n\n                        ${mappedSupplierName ? `Supplier_Name = '${mappedSupplierName.replace(/'/g, \"''\")}',` : ''}\n\n                        ${mappedSupplierContact ? `Supplier_Contact = '${mappedSupplierContact.replace(/'/g, \"''\")}',` : ''}\n\n                       \n\n                    WHERE SKU = '${SKU.replace(/'/g, \"''\")}';\n\n                `;\n\n                // Remove trailing comma before WHERE\n\n                sql = sql.replace(/,\\s*WHERE/, ' WHERE');\n\n                break;\n \n            case 'DELETE':\n\n                sql = `\n\n                    DELETE FROM stockdata\n\n                    WHERE SKU = '${SKU.replace(/'/g, \"''\")}';\n\n                `;\n\n                break;\n \n            default:\n\n                sql = `-- Invalid STATUS '${STATUS}' for SKU '${SKU}'`;\n\n        }\n \n        sqlScripts.push({ json: { sqlScript: sql.trim() } });\n\n    });\n \n    return sqlScripts;\n\n}\n \n// Get input data from n8n\n\nconst inputData = items.map(item => item.json);\n \n// Generate SQL scripts and return in n8n format\n\nreturn generateSQLScript(inputData);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        -360
+      ],
+      "id": "56d997e7-e8f2-4bde-bcbf-39db8381ef8d",
+      "name": "generate the SQL query"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -140,
+        -300
+      ],
+      "id": "1e893b14-7c20-4eb8-8406-8a8f2d6fa0cb",
+      "name": "Trigger every 2 hours"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst timestamp = $(\"Trigger every 2 hours\").all()[0]?.json?.timestamp;\n\nconst updatedItems = items.map((item) => {\n  const restockUnits = item?.json?.reorder_quantity - item?.json?.currentstock;\n  item.json.restockUnits = restockUnits;\n  item.json.timestamp = timestamp;\n  return item;\n});\n\nreturn updatedItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        -300
+      ],
+      "id": "555e2709-cfcf-404b-8da7-587d1270a950",
+      "name": "calculate Restock units"
+    },
+    {
+      "parameters": {
+        "jsCode": "const productData = $(\"Low Stock Check\")\n  .all()\n  .map((item) => item.json);\nreturn productData;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        40
+      ],
+      "id": "c8474713-4642-4f36-ad76-d2133ae02b67",
+      "name": "extract the data from slack"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst updatedItems = items.map((item) => {\n  item.json.restockUnits = item.json.reorder_quantity - item.json.currentstock;\n  item.json.timestamp = new Date();\n  return item;\n});\nreturn updatedItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        40
+      ],
+      "id": "57d5ea0a-5206-4185-b682-376013730e7f",
+      "name": "calculate the Restock units"
+    },
+    {
+      "parameters": {
+        "sendTo": "=akhilqaid@gmail.com",
+        "subject": "restock units",
+        "message": "=Dear {{ $json.suppliername }} ,\n\nI hope this message finds you well.\n\nWe are reaching out to request a restock of the following product due to low inventory levels at our warehouse:\n\nProduct Name:{{ $json.productname }}\n\nSKU:{{ $json.sku }}\n\nrestockunits:{{ $json.restockUnits }}\nWarehouse Location:{{ $json.warehouse }}\n\nKindly confirm the availability and expected delivery date for the requested units at your earliest convenience. Please include any relevant shipping or invoice details required to process this request smoothly.\n\nLooking forward to your response.\n\nBest regards,",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        40
+      ],
+      "id": "77b4743e-9b16-4473-a977-11c0fb71f6a2",
+      "name": "send mails to the suppliers",
+      "webhookId": "0e30b88a-eb3f-4be6-9513-6de96a06e1b8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "61HxX1IfRN46WIZz",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const products = $input.all().map((item) => item.json);\nconst effectedProducts = products.filter(\n  (product) => product.currentstock <= product.threshold,\n);\n\nreturn { effectedProducts };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        -280
+      ],
+      "id": "81b2734b-1b0b-4d93-8aeb-c6eb59edfd9e",
+      "name": "check the effected product"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst effectedProducts = items[0].effectedProducts;\n\nconst lowStockProducts = effectedProducts.map((product) => {\n  return {\n    Product: product.productname,\n    SKU: product.sku,\n    \"Current Stock\": product.currentstock,\n    Threshold: product.threshold,\n    Action:\n      product.currentstock < product.threshold\n        ? \"Recommend restocking \" + product.reorderquantity + \" units\"\n        : \"Auto-PO created & sent to supplier\",\n  };\n});\n\nreturn { lowStockProducts };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        -280
+      ],
+      "id": "5cf15a32-ce72-4ed5-bd81-4bfe70fa85f6",
+      "name": "extract the data of effected products"
+    },
+    {
+      "parameters": {
+        "jsCode": "const triggerType = 'manual'; // Change to 'scheduled' or 'event' as needed\n\nconst error = null; // Set to an error message if needed\n\nfor (const item of $input.all()) {\n  item.json.timestamp = new Date().toISOString();\n  item.json.triggerType = triggerType;\n $input.first().json.lowStockProducts\n  item.json.error = error;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        -280
+      ],
+      "id": "6bf2a5b0-4db8-4d21-b04f-33a2aaecd71c",
+      "name": "Add timestamp &error"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1f7419fd-159c-4811-b4b6-f16ad87d86d2",
+              "name": "productseffected",
+              "value": "=ProductName:{{ $json.Product }},SKU:{{ $json.SKU }},CurrentStock:{{ $json['Current Stock'] }},Threshold:{{ $json.Threshold }},Action:{{ $json.Action }}.",
+              "type": "string"
+            },
+            {
+              "id": "d8b0bb14-3ac4-43bb-aa77-63ff91d376a7",
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}",
+              "type": "string"
+            },
+            {
+              "id": "f81ffd59-2a5c-441f-a2e9-69c3ecdf30bd",
+              "name": "triggerType",
+              "value": "={{ $json.triggerType }}",
+              "type": "string"
+            },
+            {
+              "id": "559ba6d6-0d0b-4678-853f-a97d06062805",
+              "name": "error",
+              "value": "={{ $json.error }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1420,
+        -280
+      ],
+      "id": "507be589-586b-4a11-b885-bff39fdc1636",
+      "name": "extract the log details"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1XPKIhCiGrsCUV8aKRc094Q06u3rVcTL6FJOz94RAh0M",
+          "mode": "list",
+          "cachedResultName": "inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XPKIhCiGrsCUV8aKRc094Q06u3rVcTL6FJOz94RAh0M/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 520826705,
+          "mode": "list",
+          "cachedResultName": "logge",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XPKIhCiGrsCUV8aKRc094Q06u3rVcTL6FJOz94RAh0M/edit#gid=520826705"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "productseffected",
+              "displayName": "productseffected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "triggerType",
+              "displayName": "triggerType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        1580,
+        -280
+      ],
+      "id": "122a4c48-1ce6-425b-8def-25b1c809c642",
+      "name": "log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NWGRhsugM8HTel2L",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "akhilqaid@gmail.com",
+        "subject": "error",
+        "message": "=hello \nmanager theirn is an error in the inventory {{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        700,
+        220
+      ],
+      "id": "f010883f-d766-4142-b603-4a8133ded4ce",
+      "name": "error message to manager",
+      "webhookId": "56716585-91d0-446e-8640-5cd4255dc20d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "zzQ3n5r3War3ADvc",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst updatedItems = items.map((item) => {\n  item.json.isFromFetchInventory = item.json.productname ? true : false;\n  return item;\n});\nreturn updatedItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        320
+      ],
+      "id": "c20416de-64e6-493e-b371-e2cf437a1e67",
+      "name": "fetch inventory products and set their status as true or false"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "15707447-4eae-460f-8b93-eccf7554e067",
+              "leftValue": "={{ $json.isFromFetchInventory }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -160,
+        320
+      ],
+      "id": "2bc25188-fd12-4e33-b620-8788b4d7fa37",
+      "name": "check the product status"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst errors = items.map((item) => {\n  const timestamp = new Date().toISOString();\n  const error = item?.json?.isFromFetchInventory\n    ? \"Error from Fetch Inventory\"\n    : \"Unknown error\";\n  return { json: { error, timestamp } };\n});\nreturn errors;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        380
+      ],
+      "id": "d95a876d-6e2c-48c7-9486-56acb09b2757",
+      "name": "fetch the error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst errorMessage = items.map((item) => {\n  return {\n    message: `Error: ${item?.json?.error}, Timestamp: ${item?.json?.timestamp}`,\n  };\n});\nreturn errorMessage;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        380
+      ],
+      "id": "daaae367-c553-4ad6-9521-8e04a9c1ef21",
+      "name": "generate the error message"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a275e2e0-4d17-432b-9922-c2a1c7d8c4e0",
+              "leftValue": "={{ $json.query.STATUS }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -820,
+        140
+      ],
+      "id": "fee8bb4c-0e5b-4450-8307-c1c0334e29e8",
+      "name": "if webhook query is not empty"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst result = items\n  .map((item) => {\n    const lowStockProducts = item.lowStockProducts.map((product) => ({\n      ...product,\n      triggerType: item.triggerType,\n      timestamp: item.timestamp,\n      error: item.error,\n    }));\n    return lowStockProducts;\n  })\n  .flat();\n\nconst output = [];\nfor (const product of result) {\n  output.push({ json: product });\n}\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        -280
+      ],
+      "id": "bc7e5851-256f-4bf4-a4a2-e7f5f7941110",
+      "name": "converting the effected products as list"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "if webhook query is not empty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Low Stock Check": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "over stock flag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "extract the data from slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Low Stock": {
+      "main": [
+        [
+          {
+            "node": "calculate Restock units",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "check the effected product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Overstock": {
+      "main": [
+        [
+          {
+            "node": "send mail to manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "stock order": {
+      "main": [
+        []
+      ]
+    },
+    "update inventory": {
+      "main": [
+        [
+          {
+            "node": "fetch inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "over stock flag": {
+      "main": [
+        []
+      ]
+    },
+    "Wait 10 Min": {
+      "main": [
+        [
+          {
+            "node": "IF Retry < 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Retry < 3": {
+      "main": [
+        [
+          {
+            "node": "Increment Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Retry": {
+      "main": [
+        [
+          {
+            "node": "fetch inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch inventory": {
+      "main": [
+        [
+          {
+            "node": "Low Stock Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "check the effected product",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "fetch inventory products and set their status as true or false",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger once in a week": {
+      "main": [
+        [
+          {
+            "node": "Check Overstock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger every 6 hours": {
+      "main": [
+        [
+          {
+            "node": "fetch inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract webhook body": {
+      "main": [
+        [
+          {
+            "node": "generate the SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate the SQL query": {
+      "main": [
+        [
+          {
+            "node": "update inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger every 2 hours": {
+      "main": [
+        [
+          {
+            "node": "Check Low Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calculate Restock units": {
+      "main": [
+        [
+          {
+            "node": "send mails to the suppliers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "stock order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract the data from slack": {
+      "main": [
+        [
+          {
+            "node": "calculate the Restock units",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calculate the Restock units": {
+      "main": [
+        [
+          {
+            "node": "send mails to the suppliers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "stock order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send mails to the suppliers": {
+      "main": [
+        []
+      ]
+    },
+    "check the effected product": {
+      "main": [
+        [
+          {
+            "node": "extract the data of effected products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract the data of effected products": {
+      "main": [
+        [
+          {
+            "node": "Add timestamp &error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add timestamp &error": {
+      "main": [
+        [
+          {
+            "node": "converting the effected products as list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract the log details": {
+      "main": [
+        [
+          {
+            "node": "log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "log": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "error message to manager": {
+      "main": [
+        []
+      ]
+    },
+    "fetch inventory products and set their status as true or false": {
+      "main": [
+        [
+          {
+            "node": "check the product status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check the product status": {
+      "main": [
+        [],
+        [
+          {
+            "node": "fetch the error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch the error": {
+      "main": [
+        [
+          {
+            "node": "generate the error message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Add timestamp &error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate the error message": {
+      "main": [
+        [
+          {
+            "node": "Wait 10 Min",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "error message to manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if webhook query is not empty": {
+      "main": [
+        [
+          {
+            "node": "extract webhook body",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "fetch inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "converting the effected products as list": {
+      "main": [
+        [
+          {
+            "node": "extract the log details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "cacffc4c-f785-46db-a473-9a2dcf2090ec",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b96f1bbd167afbced9479a0658cb110e16b2123d0e5f01d979c98b399005ade3"
+  },
+  "id": "EVrG9gi6Uz7r3Fal",
+  "tags": []
+}
