@@ -1,0 +1,610 @@
+
+{
+  "name": "PR Summary Assistant",
+  "nodes": [
+    {
+      "name": "GitHub Webhook - PR Opened/Updated",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [150, 100],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-pr-event",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "name": "GitHub Comment Webhook - /summarize",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [150, 250],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-comment-summarize",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "name": "Manual Trigger (CLI/Slack/Dashboard)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [150, 400],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-pr-summary",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "name": "Filter GitHub PR Events",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [350, 100],
+      "parameters": {
+        "conditions": [
+          {
+            "value1": "={{$json.action}}",
+            "operation": "isOneOf",
+            "value2": "opened,reopened,synchronize"
+          },
+          {
+            "value1": "={{$json.pull_request.draft}}",
+            "operation": "isNotTrue"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Filter /summarize Comment",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [350, 250],
+      "parameters": {
+        "conditions": [
+          {
+            "value1": "={{$json.comment.body}}",
+            "operation": "contains",
+            "value2": "/summarize"
+          },
+          {
+            "value1": "={{$json.issue.pull_request}}",
+            "operation": "isNotEmpty"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Extract PR Details (GitHub Event)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [550, 100],
+      "parameters": {
+        "values": [
+          {
+            "name": "owner",
+            "value": "={{$json.repository.owner.login}}"
+          },
+          {
+            "name": "repo",
+            "value": "={{$json.repository.name}}"
+          },
+          {
+            "name": "pull_number",
+            "value": "={{$json.pull_request.number}}"
+          },
+          {
+            "name": "pr_title",
+            "value": "={{$json.pull_request.title}}"
+          },
+          {
+            "name": "pr_description",
+            "value": "={{$json.pull_request.body}}"
+          },
+          {
+            "name": "pr_author",
+            "value": "={{$json.pull_request.user.login}}"
+          },
+          {
+            "name": "pull_request_url",
+            "value": "={{$json.pull_request.html_url}}"
+          },
+          {
+            "name": "comment_url",
+            "value": "={{$json.pull_request.comments_url}}"
+          },
+          {
+            "name": "diff_url",
+            "value": "={{$json.pull_request.diff_url}}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Extract PR Details (Comment/Manual)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [550, 325],
+      "parameters": {
+        "values": [
+          {
+            "name": "owner",
+            "value": "={{$json.repository ? $json.repository.owner.login : $json.owner}}"
+          },
+          {
+            "name": "repo",
+            "value": "={{$json.repository ? $json.repository.name : $json.repo}}"
+          },
+          {
+            "name": "pull_number",
+            "value": "={{$json.issue ? $json.issue.number : $json.pull_number}}"
+          },
+          {
+            "name": "comment_url",
+            "value": "={{$json.issue ? $json.issue.comments_url : ''}}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get PR Details (GitHub API)",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [750, 200],
+      "parameters": {
+        "resource": "pullRequest",
+        "operation": "get",
+        "owner": "={{$json.owner}}",
+        "repository": "={{$json.repo}}",
+        "pullRequestNumber": "={{$json.pull_number}}"
+      },
+      "credentials": {
+        "gitHubOAuth2Api": "YOUR_GITHUB_CREDENTIAL_NAME"
+      }
+    },
+    {
+      "name": "Get PR Files and Diff (GitHub API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [950, 200],
+      "parameters": {
+        "method": "GET",
+        "url": "={{$json.files_url}}",
+        "responseFormat": "json",
+        "authentication": "headerAuth",
+        "headerAuth": {
+          "headerName": "Authorization",
+          "headerValue": "Bearer {{$env.GITHUB_API_TOKEN}}"
+        }
+      }
+    },
+    {
+      "name": "Process Files for LLM",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1150, 200],
+      "parameters": {
+        "functionCode": "const pr = $node['Get PR Details (GitHub API)'].json;\nconst changedFiles = items.map(file => ({\n    filename: file.json.filename,\n    status: file.json.status,\n    patch: file.json.patch,\n    additions: file.json.additions,\n    deletions: file.json.deletions\n}));\n\nconst context = {\n    title: pr.title,\n    description: pr.body || 'No description provided.',\n    author: pr.user.login,\n    baseBranch: pr.base.ref,\n    headBranch: pr.head.ref,\n    pull_number: pr.number,\n    pull_request_url: pr.html_url,\n    comment_url: pr.comments_url,\n    owner: pr.base.repo.owner.login,\n    repo: pr.base.repo.name,\n    changedFiles: changedFiles.map(f => ({\n        filename: f.filename,\n        status: f.status,\n        patch: f.patch\n    }))\n};\n\nreturn [{ json: context }];"
+      }
+    },
+    {
+      "name": "Construct LLM Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1350, 200],
+      "parameters": {
+        "functionCode": "const prContext = items[0].json;\n\nlet fileDiffs = prContext.changedFiles.map(file => {\n    return `--- File: ${file.filename} (Status: ${file.status}) ---\\n${file.patch || 'No patch available.'}\\n`;\n}).join('\\n\\n');\n\nconst prompt = `You are an AI assistant tasked with summarizing GitHub Pull Requests for non-technical audiences.\\nExplain the purpose and changes in the following pull request in simple, non-technical terms.\\nList affected modules/features, summarize functionality changes, and highlight potential risks (e.g., breaking changes, edge cases, missing tests).\\n\\n---\\nPull Request Details:\\nTitle: ${prContext.title}\\nDescription:\\n${prContext.description}\\n\\n---\\nChanged Files and Code Diff (Patches):\\n${fileDiffs}\\n---\\n\\nYour summary should follow this format:\\n\\n🧠 PR Summary by QAID’s PR Summary Assistant\\n🔹 Purpose: [Plain-English purpose]\\n🔹 Changes Made: [Summary of functionality changes, affected modules/features]\\n🔹 Risks: [Assessment of potential risks, e.g., \"Touches auth logic – high-risk\", \"No test coverage for X\", \"Potential edge cases\"]\\n🔍 Reviewer Note: [Optional, specific advice for reviewers based on diff analysis]\\n`;\n\nreturn [{ json: { prompt: prompt, prContext: prContext } }];"
+      }
+    },
+    {
+      "name": "Call LLM (OpenAI/Mistral/CodeT5)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1550, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "responseFormat": "json",
+        "authentication": "headerAuth",
+        "headerAuth": {
+          "headerName": "Authorization",
+          "headerValue": "Bearer {{$env.OPENAI_API_KEY}}"
+        },
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a helpful assistant.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{$json.prompt}}\"\n    }\n  ],\n  \"temperature\": 0.7\n}"
+      }
+    },
+    {
+      "name": "Extract LLM Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1750, 200],
+      "parameters": {
+        "functionCode": "const llmResponse = items[0].json;\nconst summaryText = llmResponse.choices[0].message.content;\nreturn [{ json: { summary: summaryText, prContext: items[0].json.prContext } }];"
+      }
+    },
+    {
+      "name": "Post PR Comment (GitHub)",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [1950, 100],
+      "parameters": {
+        "resource": "issueComment",
+        "operation": "create",
+        "owner": "={{$json.prContext.owner}}",
+        "repository": "={{$json.prContext.repo}}",
+        "issueNumber": "={{$json.prContext.pull_number}}",
+        "commentBody": "={{$json.summary}}\n\nGenerated automatically by PR Summary Assistant"
+      },
+      "credentials": {
+        "gitHubOAuth2Api": "YOUR_GITHUB_CREDENTIAL_NAME"
+      }
+    },
+    {
+      "name": "Send Slack Message (Optional)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1950, 250],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#team-dev-alerts",
+        "text": "PR Summary for <{{$json.prContext.pull_request_url}}|PR #{{$json.prContext.pull_number}}>:\n\n{{$json.summary}}",
+        "textHtml": true
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_NAME"
+      }
+    },
+    {
+      "name": "Send Email to Reviewers (Optional)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1950, 400],
+      "parameters": {
+        "toEmail": "={{$env.REVIEWER_EMAIL_PLACEHOLDER}}",
+        "subject": "PR Summary: #{{$json.prContext.pull_number}} - {{$json.prContext.pr_title}}",
+        "text": "Dear Reviewer,\n\nHere's a summary of PR #{{$json.prContext.pull_number}}:\n\n{{$json.summary}}\n\nReview it here: {{$json.prContext.pull_request_url}}",
+        "fromEmail": "pr-summary-bot@yourdomain.com"
+      },
+      "credentials": {
+        "emailSendOAuth2Api": "YOUR_EMAIL_CREDENTIAL_NAME"
+      }
+    },
+    {
+      "name": "Log Success",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [2150, 200],
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{$env.LOG_SHEET_ID}}",
+        "range": "PR_Summaries!A1",
+        "valueInputMode": "RAW",
+        "insertDataOptions": "OVERWRITE",
+        "data": "=[{\"Timestamp\": \"={{new Date().toISOString()}}\", \"PR Number\": \"={{$json.prContext.pull_number}}\", \"Repository\": \"={{$json.prContext.owner}}/{{$json.prContext.repo}}\", \"Summary Generated\": \"Yes\", \"LLM Response Length\": \"={{$json.summary.length}}\", \"Error Message\": \"\"}]"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": "YOUR_GOOGLE_SHEETS_CREDENTIAL_NAME"
+      }
+    },
+    {
+      "name": "Handle Failed Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1750, 500],
+      "parameters": {
+        "functionCode": "const originalContext = $input.item[0].json; \nconst errorMessage = $error.message || \"Unknown error occurred.\";\nconst prUrl = originalContext.prContext ? originalContext.prContext.pull_request_url : originalContext.pull_request_url; \nconst prNum = originalContext.prContext ? originalContext.prContext.pull_number : originalContext.pull_number;\nconst owner = originalContext.prContext ? originalContext.prContext.owner : originalContext.owner;\nconst repo = originalContext.prContext ? originalContext.prContext.repo : originalContext.repo;\n\nconst fallbackMessage = `⚠️ **PR Summary could not be generated for PR #${prNum} in ${owner}/${repo}.**\\n\\n` +\n                                    `*Reason:* Invalid diff, API error, or unexpected response.\\n` +\n                                    `*Details:* ${errorMessage}\\n\\n` +\n                                    `Please check the workflow execution logs for more information.\\n` +\n                                    `Generated automatically by PR Summary Assistant`;\n\nreturn [{ json: { fallbackMessage: fallbackMessage, originalContext: originalContext, errorMessage: errorMessage } }];"
+      }
+    },
+    {
+      "name": "Post Fallback Comment (GitHub)",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [1950, 500],
+      "parameters": {
+        "resource": "issueComment",
+        "operation": "create",
+        "owner": "={{$json.originalContext.prContext ? $json.originalContext.prContext.owner : $json.originalContext.owner}}",
+        "repository": "={{$json.originalContext.prContext ? $json.originalContext.prContext.repo : $json.originalContext.repo}}",
+        "issueNumber": "={{$json.originalContext.prContext ? $json.originalContext.prContext.pull_number : $json.originalContext.pull_number}}",
+        "commentBody": "={{$json.fallbackMessage}}"
+      },
+      "credentials": {
+        "gitHubOAuth2Api": "YOUR_GITHUB_CREDENTIAL_NAME"
+      }
+    },
+    {
+      "name": "Log Failure",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [2150, 500],
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{$env.LOG_SHEET_ID}}",
+        "range": "PR_Summaries!A1",
+        "valueInputMode": "RAW",
+        "insertDataOptions": "OVERWRITE",
+        "data": "=[{\"Timestamp\": \"={{new Date().toISOString()}}\", \"PR Number\": \"={{$json.originalContext.prContext ? $json.originalContext.prContext.pull_number : $json.originalContext.pull_number}}\", \"Repository\": \"={{$json.originalContext.prContext ? $json.originalContext.prContext.owner : $json.originalContext.owner}}/{{$json.originalContext.prContext ? $json.originalContext.prContext.repo : $json.originalContext.repo}}\", \"Summary Generated\": \"No\", \"LLM Response Length\": \"\", \"Error Message\": \"={{$json.errorMessage}}\"}]"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": "YOUR_GOOGLE_SHEETS_CREDENTIAL_NAME"
+      }
+    }
+  ],
+  "connections": {
+    "GitHub Webhook - PR Opened/Updated": {
+      "main": [
+        [
+          {
+            "node": "Filter GitHub PR Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Comment Webhook - /summarize": {
+      "main": [
+        [
+          {
+            "node": "Filter /summarize Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger (CLI/Slack/Dashboard)": {
+      "main": [
+        [
+          {
+            "node": "Extract PR Details (Comment/Manual)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter GitHub PR Events": {
+      "main": [
+        [
+          {
+            "node": "Extract PR Details (GitHub Event)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Filter /summarize Comment": {
+      "main": [
+        [
+          {
+            "node": "Extract PR Details (Comment/Manual)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Extract PR Details (GitHub Event)": {
+      "main": [
+        [
+          {
+            "node": "Get PR Details (GitHub API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PR Details (Comment/Manual)": {
+      "main": [
+        [
+          {
+            "node": "Get PR Details (GitHub API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PR Details (GitHub API)": {
+      "main": [
+        [
+          {
+            "node": "Get PR Files and Diff (GitHub API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PR Files and Diff (GitHub API)": {
+      "main": [
+        [
+          {
+            "node": "Process Files for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Handle Failed Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Files for LLM": {
+      "main": [
+        [
+          {
+            "node": "Construct LLM Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construct LLM Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call LLM (OpenAI/Mistral/CodeT5)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LLM (OpenAI/Mistral/CodeT5)": {
+      "main": [
+        [
+          {
+            "node": "Extract LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Handle Failed Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Post PR Comment (GitHub)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Slack Message (Optional)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email to Reviewers (Optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post PR Comment (GitHub)": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Message (Optional)": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Handle Failed Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email to Reviewers (Optional)": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Handle Failed Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Failed Summary": {
+      "main": [
+        [
+          {
+            "node": "Post Fallback Comment (GitHub)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Fallback Comment (GitHub)": {
+      "main": [
+        []
+      ]
+    },
+    "Log Success": {
+      "main": [
+        []
+      ],
+      "error": [
+        [
+          {
+            "node": "Handle Failed Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Failure": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "errorWorkflowId": "GLOBAL_ERROR_WORKFLOW_ID_PLACEHOLDER"
+  },
+  "tags": [],
+  "createdAt": "2025-06-24T11:15:00.000Z",
+  "updatedAt": "2025-06-24T11:15:00.000Z"
+}
