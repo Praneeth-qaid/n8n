@@ -1,0 +1,129 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "contract-upload",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f6f7244f-da4a-44c9-88e1-c376a31d5aad",
+      "webhookId": "fd4b6c63-2053-4a7c-a5fa-ffd09db02006"
+    },
+    {
+      "parameters": {
+        "url": "https://ocr.space/parse/image",
+        "options": {}
+      },
+      "name": "OCR if needed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        200,
+        0
+      ],
+      "id": "34093a6b-7a18-4aac-bef1-f4f8ce7df374"
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { cleanedText: $json.text.replace(/\\n+/g, '\\n').trim() } }];"
+      },
+      "name": "Clean Extracted Text",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        400,
+        0
+      ],
+      "id": "db0344eb-c44c-4b49-842b-971db3780e4c"
+    },
+    {
+      "parameters": {},
+      "name": "Analyze Contract (GPT)",
+      "type": "n8n-nodes-base.openai",
+      "typeVersion": 1,
+      "position": [
+        600,
+        0
+      ],
+      "id": "41e88569-e9a7-42c8-8963-dc7d60ac5dac"
+    },
+    {
+      "parameters": {
+        "functionCode": "const summary = $json.choices[0].text;\nreturn [{ json: { summary } }];"
+      },
+      "name": "Parse GPT Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        800,
+        0
+      ],
+      "id": "a9d1e99b-867f-4c96-948b-2d1058ae5127"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        0
+      ],
+      "id": "b3ef7e4a-a7fe-441f-87ec-f7315bc1ce1c"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "OCR if needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR if needed": {
+      "main": [
+        [
+          {
+            "node": "Clean Extracted Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse GPT Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "",
+  "meta": {
+    "instanceId": "b96f1bbd167afbced9479a0658cb110e16b2123d0e5f01d979c98b399005ade3"
+  },
+  "tags": []
+}
