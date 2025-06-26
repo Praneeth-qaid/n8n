@@ -1,0 +1,3 @@
+class Demo {
+print("helle who are you")
+}
